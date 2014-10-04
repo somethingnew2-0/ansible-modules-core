@@ -619,6 +619,11 @@ class DockerManager:
 
             return results
 
+        self.pull_containers()
+
+        return do_create(count, params)
+
+    def pull_containers(self):
         resource = self.module.params.get('image')
         image, tag = self.get_split_image_tag(resource)
         if self.module.params.get('username'):
@@ -636,7 +641,6 @@ class DockerManager:
         except:
             self.module.fail_json(msg="failed to pull the specified image: %s" % resource)
         self.increment_counter('pull')
-        return do_create(count, params)
 
     def start_containers(self, containers):
         params = {
@@ -774,13 +778,18 @@ def main():
                         break
 
                 # the named container is running, but with a
-                # different image or tag, so we stop it first
-                if existing_container and existing_container.get('Config', dict()).get('Image') != image:
-                    manager.stop_containers([existing_container])
-                    manager.remove_containers([existing_container])
-                    running_containers = manager.get_running_containers()
-                    deployed_containers = manager.get_deployed_containers()
-                    existing_container = None
+                if existing_container:
+                    # different image or tag, so we stop it first
+                    if existing_container.get('Config', dict()).get('Image') != image:
+                        manager.stop_containers([existing_container])
+                        manager.remove_containers([existing_container])
+                        running_containers = manager.get_running_containers()
+                        deployed_containers = manager.get_deployed_containers()
+                        existing_container = None
+                    # same image and tag, we need to pull
+                    else:
+                        module.pull_containers()
+
 
                 # if the container isn't running (or if we stopped the
                 # old version above), create and (maybe) start it up now
