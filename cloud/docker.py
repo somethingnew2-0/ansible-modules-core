@@ -619,29 +619,24 @@ class DockerManager:
 
             return results
 
-        try:
-            containers = do_create(count, params)
-        except:
-            resource = self.module.params.get('image')
-            image, tag = self.get_split_image_tag(resource)
-            if self.module.params.get('username'):
-                try:
-                    self.client.login(
-                        self.module.params.get('username'),
-                        password=self.module.params.get('password'),
-                        email=self.module.params.get('email'),
-                        registry=self.module.params.get('registry')
-                    )
-                except:
-                    self.module.fail_json(msg="failed to login to the remote registry, check your username/password.")
+        resource = self.module.params.get('image')
+        image, tag = self.get_split_image_tag(resource)
+        if self.module.params.get('username'):
             try:
-                self.client.pull(image, tag=tag)
+                self.client.login(
+                    self.module.params.get('username'),
+                    password=self.module.params.get('password'),
+                    email=self.module.params.get('email'),
+                    registry=self.module.params.get('registry')
+                )
             except:
-                self.module.fail_json(msg="failed to pull the specified image: %s" % resource)
-            self.increment_counter('pull')
-            containers = do_create(count, params)
-
-        return containers
+                self.module.fail_json(msg="failed to login to the remote registry, check your username/password.")
+        try:
+            self.client.pull(image, tag=tag)
+        except:
+            self.module.fail_json(msg="failed to pull the specified image: %s" % resource)
+        self.increment_counter('pull')
+        return do_create(count, params)
 
     def start_containers(self, containers):
         params = {
